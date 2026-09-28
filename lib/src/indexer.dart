@@ -72,8 +72,13 @@ Future<Index> indexPackage(
   // is visited, so a reference from another file gets the same symbol even
   // when it resolves to a different element instance for the function.
   final namingSt = Stopwatch()..start();
-  final namingGenerator = SymbolGenerator(packageConfig, pubspec);
-  final anonymousFunctions = AnonymousFunctions.build(
+  final anonymousFunctions = AnonymousFunctions();
+  final namingGenerator = SymbolGenerator(
+    packageConfig,
+    pubspec,
+    anonymousFunctions,
+  );
+  anonymousFunctions.build(
     resolvedUnits.whereType<ResolvedUnitResult>(),
     namingGenerator.descriptorFor,
     namingGenerator.namespaceFor,

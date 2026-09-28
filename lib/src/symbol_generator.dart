@@ -261,7 +261,12 @@ class SymbolGenerator {
     }
 
     if (element is MethodElement) {
-      final className = element.enclosingElement?.name;
+      final enclosing = element.enclosingElement;
+      if (AnonymousFunctions.isUnnamedExtension(enclosing)) {
+        final container = _getDescriptor(enclosing!);
+        if (container != null) return '$container${element.name}().';
+      }
+      final className = enclosing?.name;
       return '$namespace/$className#${element.name}().';
     }
 
@@ -318,6 +323,12 @@ class SymbolGenerator {
         prefix = '<set>';
       }
 
+      if (AnonymousFunctions.isUnnamedExtension(parent)) {
+        final container = _getDescriptor(parent);
+        if (container != null) {
+          return '$container`$prefix${element.variable.name}`.';
+        }
+      }
       return [
         '$namespace/',
         if (parentName != null) '$parentName#',

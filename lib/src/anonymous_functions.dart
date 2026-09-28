@@ -60,23 +60,26 @@ class AnonymousFunctions {
 
   int get length => _byElement.length;
 
-  AnonymousFunctions._();
-
-  /// Builds the table for [units]. [descriptorFor] is the descriptor of a
+  /// Fills the table from [units]. [descriptorFor] is the descriptor of a
   /// global-shaped element, and [namespaceFor] the file namespace of an
   /// element (`<ns>/` is the anchor when there is no enclosing declaration).
-  factory AnonymousFunctions.build(
+  ///
+  /// Unnamed extensions are named first, so that [descriptorFor] (a
+  /// generator reading this table) gives their members, which anchor closures,
+  /// their final names.
+  void build(
     Iterable<ResolvedUnitResult> units,
     String? Function(Element) descriptorFor,
     String? Function(Element) namespaceFor,
   ) {
-    final table = AnonymousFunctions._();
     for (final unit in units) {
       final path = unit.unit.declaredFragment?.source.fullName;
-      if (path != null) table._paths.add(path);
-      unit.unit.accept(_Collector(table, descriptorFor, namespaceFor));
+      if (path != null) _paths.add(path);
+      unit.unit.accept(_ExtensionCollector(this, namespaceFor));
     }
-    return table;
+    for (final unit in units) {
+      unit.unit.accept(_Collector(this, descriptorFor, namespaceFor));
+    }
   }
 
   void _record(Element element, Fragment fragment, String d) {
@@ -87,8 +90,11 @@ class AnonymousFunctions {
     // instance, so local functions also get a position key. A function
     // type's type parameters are in scope only inside that type, and its
     // fragment offset can be shared (a curried type) or absent (a fragment
-    // built from a summary), so it gets none.
-    if (element is! LocalFunctionElement) return;
+    // built from a summary), so it gets none. An unnamed extension's members
+    // are used from other documents, so it gets one too.
+    if (element is! LocalFunctionElement && element is! ExtensionElement) {
+      return;
+    }
     final path = element.source?.fullName;
     if (path == null) return;
     final byOffset = _byPosition.putIfAbsent(path, () => {});
@@ -126,17 +132,54 @@ class AnonymousFunctions {
   }
 
   String? _byPositionFor(Element element) {
-    if (element is! LocalFunctionElement) return null;
+    if (element is! LocalFunctionElement && element is! ExtensionElement) {
+      return null;
+    }
     final byOffset = _byPosition[element.source?.fullName];
     return byOffset == null ? null : byOffset[element.firstFragment.offset];
   }
 
   /// Whether the table names [element]: an anonymous function, a local
-  /// function or a generic function type.
+  /// function, a generic function type or an unnamed extension.
   static bool names(Element element) =>
       element is LocalFunctionElement ||
       (element is GenericFunctionTypeElement &&
-          element.typeParameters.isNotEmpty);
+          element.typeParameters.isNotEmpty) ||
+      isUnnamedExtension(element);
+
+  static bool isUnnamedExtension(Element? element) =>
+      element is ExtensionElement && element.name == null;
+}
+
+/// Names each unnamed extension `<ns>/`<extension on T>(k)`#`, where T is the
+/// extended type as source text and k its rank in source order among the
+/// file's unnamed extensions on the same T, so adding an extension on another
+/// type renames nothing.
+class _ExtensionCollector extends RecursiveAstVisitor<void> {
+  final AnonymousFunctions _table;
+  final String? Function(Element) _namespaceFor;
+  final Map<String, int> _ranks = {};
+
+  _ExtensionCollector(this._table, this._namespaceFor);
+
+  @override
+  void visitExtensionDeclaration(ExtensionDeclaration node) {
+    final fragment = node.declaredFragment;
+    final element = fragment?.element;
+    if (node.name == null && fragment != null && element != null) {
+      final namespace = _namespaceFor(element);
+      if (namespace != null) {
+        final on = node.onClause?.extendedType.toSource() ?? '';
+        final rank = _ranks[on] = (_ranks[on] ?? 0) + 1;
+        _table._record(
+          element,
+          fragment,
+          '$namespace/`<extension on ${on.replaceAll('`', '``')}>($rank)`#',
+        );
+      }
+    }
+    super.visitExtensionDeclaration(node);
+  }
 }
 
 class _Collector extends RecursiveAstVisitor<void> {
