@@ -158,12 +158,19 @@ class SymbolGenerator {
       return _localSymbolFor(element);
     }
 
-    if (element.isPrivate) {
+    // A private name is library-scoped, and a library spans its part files:
+    // a document-local symbol would cut every use in another part from its
+    // definition. A named private element is named like a public one (its
+    // namespace is its declaring file, so two libraries' `_f` differ). An
+    // element with no name (isPrivate is true for it) stays local.
+    if (element.name == null) {
       return _localSymbolFor(element);
     }
 
     final descriptor = _getDescriptor(element);
-    if (descriptor == null) return null;
+    if (descriptor == null) {
+      return element.isPrivate ? _localSymbolFor(element) : null;
+    }
 
     // Symbol Form: '<scheme> ' ' <package> ' ' (<descriptor>)+ | 'local ' <local-id>'
     return ['scip-dart', _getPackage(element), descriptor].join(' ');
