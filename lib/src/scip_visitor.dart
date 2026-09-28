@@ -1,3 +1,4 @@
+import 'package:analyzer/dart/analysis/features.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/element/element.dart';
@@ -68,6 +69,8 @@ class ScipVisitor extends GeneralizingAstVisitor {
       _visitImportPrefixReference(node);
     } else if (node is NamedArgument) {
       _visitNamedArgument(node);
+    } else if (node is CatchClauseParameter) {
+      _visitCatchClauseParameter(node);
     }
 
     super.visitNode(node);
@@ -104,6 +107,23 @@ class ScipVisitor extends GeneralizingAstVisitor {
       if (!node.isNamed) return;
     }
 
+    _registerAsDefinition(element, node);
+  }
+
+  /// The exception and stack trace parameters of a catch clause are neither
+  /// declarations nor formal parameters, and their name is a token, so they
+  /// are defined here. A wildcard `_` (language 3.7 and later) declares no
+  /// binding, so it gets no definition.
+  void _visitCatchClauseParameter(CatchClauseParameter node) {
+    final fragment = node.declaredFragment;
+    final name = fragment?.name;
+    if (fragment == null || name == null) return;
+    final element = fragment.element;
+    final wildcard =
+        name == '_' &&
+        element.library?.featureSet.isEnabled(Feature.wildcard_variables) ==
+            true;
+    if (wildcard) return;
     _registerAsDefinition(element, node);
   }
 
