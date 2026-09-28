@@ -272,6 +272,18 @@ class SymbolGenerator {
     if (element is TypeParameterElement) {
       final encEle = element.enclosingElement;
       if (encEle == null) return '$namespace/[${element.name}]';
+      // A function-typed positional parameter (`T g<T>(T x)`) encloses its
+      // type parameters, and has no descriptor of its own (it is local):
+      // name them under the parameter's enclosing function instead.
+      if (encEle is FormalParameterElement && !encEle.isNamed) {
+        final function = encEle.enclosingElement;
+        final functionDescriptor = function == null
+            ? null
+            : _getDescriptor(function);
+        if (functionDescriptor != null) {
+          return '$functionDescriptor(${encEle.name})[${element.name}]';
+        }
+      }
       return '${_getDescriptor(encEle)}[${element.name}]';
     }
 

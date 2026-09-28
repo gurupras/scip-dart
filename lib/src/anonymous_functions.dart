@@ -74,6 +74,12 @@ class AnonymousFunctions {
 
   void _record(Element element, Fragment fragment, String d) {
     _byElement[element] = d;
+    // Only an anonymous function can be referenced from another document
+    // (a stored closure), so only it needs the position key. A function
+    // type's type parameters are in scope only inside that type, and its
+    // fragment offset can be shared (a curried type) or absent (a fragment
+    // built from a summary).
+    if (element is! LocalFunctionElement) return;
     final path = element.source?.fullName;
     if (path == null) return;
     final byOffset = _byPosition.putIfAbsent(path, () => {});
@@ -92,17 +98,16 @@ class AnonymousFunctions {
   /// The descriptor of an unnamed function ([unnamed]) of the indexed package,
   /// or null for one outside it (counted as a miss or an external fallback).
   String? descriptorFor(Element element) {
-    final d =
-        _byElement[element] ??
-        _byPosition[element.source?.fullName]?[element.firstFragment.offset];
+    final d = _byElement[element] ?? _byPositionFor(element);
     if (d != null) return d;
     if (_missed.add(element)) {
       final path = element.source?.fullName;
       if (path != null && _paths.contains(path)) {
         internalMisses++;
         display(
-          'Unnamed function without a descriptor at '
-          '$path@${element.firstFragment.offset}',
+          'Unnamed function without a descriptor in $path: '
+          '${element.runtimeType}'
+          '${element is LocalFunctionElement ? ' @${element.firstFragment.offset}' : ''}',
         );
       } else {
         externalFallbacks++;
@@ -111,11 +116,18 @@ class AnonymousFunctions {
     return null;
   }
 
+  String? _byPositionFor(Element element) {
+    if (element is! LocalFunctionElement) return null;
+    final byOffset = _byPosition[element.source?.fullName];
+    return byOffset == null ? null : byOffset[element.firstFragment.offset];
+  }
+
   /// Whether [element] is an unnamed function: an anonymous function or a
   /// generic function type.
   static bool isUnnamed(Element element) =>
       (element is LocalFunctionElement && element.name == null) ||
-      element is GenericFunctionTypeElement;
+      (element is GenericFunctionTypeElement &&
+          element.typeParameters.isNotEmpty);
 }
 
 class _Collector extends RecursiveAstVisitor<void> {
@@ -166,6 +178,13 @@ class _Collector extends RecursiveAstVisitor<void> {
 
   @override
   void visitGenericFunctionType(GenericFunctionType node) {
+    // Only type parameters use a function type's descriptor, so a
+    // non-generic function type is transparent: it takes no rank, and an
+    // ordinary callback type never renames a generic sibling.
+    if (node.typeParameters == null) {
+      super.visitGenericFunctionType(node);
+      return;
+    }
     _visitUnnamed(
       AnonymousFunctions._functionType,
       node,
