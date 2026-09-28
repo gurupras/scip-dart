@@ -237,7 +237,7 @@ class SymbolGenerator {
 
     // Unnamed functions of the indexed package are named after their parent
     // (see [AnonymousFunctions]); others keep the shapes below.
-    if (AnonymousFunctions.isUnnamed(element)) {
+    if (AnonymousFunctions.names(element)) {
       final descriptor = _anonymousFunctions?.descriptorFor(element);
       if (descriptor != null) return descriptor;
     }

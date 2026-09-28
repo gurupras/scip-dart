@@ -24,6 +24,13 @@ import 'package:scip_dart/src/utils.dart';
 /// never change a rank. Inserting, deleting or wrapping a closure renames only
 /// its later siblings and their descendants (and, for a wrap, the wrapped
 /// subtree), and an edit outside the anchor renames nothing.
+///
+/// A local function would otherwise be `<file>/name().`, shared with every
+/// same-named local and top-level function of the file. It is named
+/// `<parent>name(k).`, where the parent is its innermost enclosing closure,
+/// function type or local function (else the anchor), and `k` its rank among
+/// same-named local functions under that parent. It is the parent of the local
+/// functions inside it only, so no closure or function type changes name.
 class AnonymousFunctions {
   static const _anonymous = '<anonymous>';
   static const _functionType = '<function-type>';
@@ -79,7 +86,7 @@ class AnonymousFunctions {
     // type's type parameters are in scope only inside that type, and its
     // fragment offset can be shared (a curried type) or absent (a fragment
     // built from a summary).
-    if (element is! LocalFunctionElement) return;
+    if (!_isAnonymous(element)) return;
     final path = element.source?.fullName;
     if (path == null) return;
     final byOffset = _byPosition.putIfAbsent(path, () => {});
@@ -95,7 +102,7 @@ class AnonymousFunctions {
     byOffset[fragment.offset] = d;
   }
 
-  /// The descriptor of an unnamed function ([unnamed]) of the indexed package,
+  /// The descriptor of a function the table [names] in the indexed package,
   /// or null for one outside it (counted as a miss or an external fallback).
   String? descriptorFor(Element element) {
     final d = _byElement[element] ?? _byPositionFor(element);
@@ -117,17 +124,20 @@ class AnonymousFunctions {
   }
 
   String? _byPositionFor(Element element) {
-    if (element is! LocalFunctionElement) return null;
+    if (!_isAnonymous(element)) return null;
     final byOffset = _byPosition[element.source?.fullName];
     return byOffset == null ? null : byOffset[element.firstFragment.offset];
   }
 
   /// Whether [element] is an unnamed function: an anonymous function or a
   /// generic function type.
-  static bool isUnnamed(Element element) =>
-      (element is LocalFunctionElement && element.name == null) ||
+  static bool names(Element element) =>
+      element is LocalFunctionElement ||
       (element is GenericFunctionTypeElement &&
           element.typeParameters.isNotEmpty);
+
+  static bool _isAnonymous(Element element) =>
+      element is LocalFunctionElement && element.name == null;
 }
 
 class _Collector extends RecursiveAstVisitor<void> {
@@ -135,8 +145,21 @@ class _Collector extends RecursiveAstVisitor<void> {
   final String? Function(Element) _descriptorFor;
   final String? Function(Element) _namespaceFor;
 
-  /// Descriptors of the enclosing unnamed functions, innermost last.
-  final List<String> _parents = [];
+  /// Descriptors of the enclosing named-by-the-table functions, innermost
+  /// last, each marked whether it is a local function. Local functions are
+  /// parents of local functions only: closures and function types skip them.
+  final List<(String, bool)> _parents = [];
+
+  /// The innermost enclosing parent a closure or function type may have.
+  String? get _unnamedParent {
+    for (var i = _parents.length - 1; i >= 0; i--) {
+      if (!_parents[i].$2) return _parents[i].$1;
+    }
+    return null;
+  }
+
+  /// The innermost enclosing parent a local function may have.
+  String? get _localParent => _parents.isEmpty ? null : _parents.last.$1;
 
   /// (kind, parent descriptor) -> children ranked so far
   final Map<(String, String), int> _ranks = {};
@@ -145,6 +168,35 @@ class _Collector extends RecursiveAstVisitor<void> {
   final Map<AstNode, String?> _anchors = {};
 
   _Collector(this._table, this._descriptorFor, this._namespaceFor);
+
+  @override
+  void visitFunctionDeclaration(FunctionDeclaration node) {
+    // A local function is named after its innermost enclosing closure,
+    // function type or local function, else the anchor, and ranked among the
+    // local functions of the same name under that parent, so adding an
+    // unrelated local function renames nothing. It is a parent of the local
+    // functions inside it only.
+    final fragment = node.declaredFragment;
+    final element = fragment?.element;
+    final name = element?.name;
+    if (fragment != null && element is LocalFunctionElement && name != null) {
+      final parent = _localParent ?? _anchorOf(node) ?? _fileAnchorOf(element);
+      if (parent != null) {
+        final key = ('local $name', parent);
+        final rank = _ranks[key] = (_ranks[key] ?? 0) + 1;
+        final descriptor = '$parent$name($rank).';
+        _table._record(element, fragment, descriptor);
+        _parents.add((descriptor, true));
+        try {
+          super.visitFunctionDeclaration(node);
+        } finally {
+          _parents.removeLast();
+        }
+        return;
+      }
+    }
+    super.visitFunctionDeclaration(node);
+  }
 
   @override
   void visitFunctionExpression(FunctionExpression node) {
@@ -200,12 +252,10 @@ class _Collector extends RecursiveAstVisitor<void> {
     void Function() visitChildren,
   ) {
     final element = fragment?.element;
-    final parent = _parents.isNotEmpty
-        ? _parents.last
-        : _anchorOf(node) ?? _fileAnchorOf(element);
+    final parent = _unnamedParent ?? _anchorOf(node) ?? _fileAnchorOf(element);
     if (fragment == null ||
         element == null ||
-        !AnonymousFunctions.isUnnamed(element) ||
+        !AnonymousFunctions.names(element) ||
         parent == null) {
       visitChildren();
       return;
@@ -213,7 +263,7 @@ class _Collector extends RecursiveAstVisitor<void> {
     final rank = _ranks[(kind, parent)] = (_ranks[(kind, parent)] ?? 0) + 1;
     final descriptor = '$parent`$kind`($rank).';
     _table._record(element, fragment, descriptor);
-    _parents.add(descriptor);
+    _parents.add((descriptor, false));
     try {
       visitChildren();
     } finally {
