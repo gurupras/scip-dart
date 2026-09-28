@@ -2,6 +2,7 @@ import 'package:analyzer/dart/ast/ast.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:pubspec_parse/pubspec_parse.dart';
 import 'package:package_config/package_config.dart';
+import 'package:scip_dart/src/anonymous_functions.dart';
 import 'package:scip_dart/src/package_version_cache.dart';
 import 'package:scip_dart/src/utils.dart';
 
@@ -21,7 +22,24 @@ class SymbolGenerator {
   /// Use [_localSymbolFor] to generate new local symbols
   Map<Element, String> _localElementRegistry = {};
 
-  SymbolGenerator(this._packageConfig, this._pubspec);
+  /// Descriptors of the package's anonymous functions; null while the table
+  /// itself is being built.
+  final AnonymousFunctions? _anonymousFunctions;
+
+  SymbolGenerator(
+    this._packageConfig,
+    this._pubspec, [
+    this._anonymousFunctions,
+  ]);
+
+  /// The scip descriptor of [element], or null (see [_getDescriptor]).
+  String? descriptorFor(Element element) => _getDescriptor(element);
+
+  /// The escaped file namespace of [element]'s source (no trailing `/`).
+  String? namespaceFor(Element element) {
+    final filePath = _filePathFor(element);
+    return filePath == null ? null : _escapeNamespacePath(filePath);
+  }
 
   /// For a given [AstNode], returns the correlating [Element] type
   /// that should be used to generate the symbol
@@ -212,30 +230,18 @@ class SymbolGenerator {
   /// <escaped-characters>   ::= any UTF-8 character, escape backticks with double backtick.
   /// ```
   String? _getDescriptor(Element element) {
-    if (element.source == null) {
-      display(
-        'WARN: Element has null source: '
-        '${element.runtimeType} (${element}) ',
-      );
-      return null;
-    }
-    final sourcePath = element.source!.fullName;
-
-    String filePath;
-    if (_isInSdk(element)) {
-      filePath = _pathForSdkElement(element);
-    } else {
-      final config = _packageConfig.packageOf(Uri.file(sourcePath));
-      if (config == null) {
-        throw Exception(
-          'Could not find package for $sourcePath. Have you run pub get?',
-        );
-      }
-
-      filePath = sourcePath.substring(config.root.toFilePath().length);
-    }
+    final filePath = _filePathFor(element);
+    if (filePath == null) return null;
 
     final namespace = _escapeNamespacePath(filePath);
+
+    // Anonymous functions of the indexed package are named after their
+    // anchor (see [AnonymousFunctions]); others keep the unnamed shape below.
+    if (element is LocalFunctionElement &&
+        AnonymousFunctions.isAnonymous(element)) {
+      final anonymous = _anonymousFunctions?.descriptorFor(element);
+      if (anonymous != null) return anonymous;
+    }
 
     if (element is InterfaceElement || // class, mixin, enum, extension type
         element is TypeAliasElement ||
@@ -317,6 +323,29 @@ class SymbolGenerator {
       '\n',
     );
     return null;
+  }
+
+  /// The path of [element]'s source relative to its package root (or its
+  /// `dart:` uri for sdk elements); null when the element has no source.
+  String? _filePathFor(Element element) {
+    if (element.source == null) {
+      display(
+        'WARN: Element has null source: '
+        '${element.runtimeType} (${element}) ',
+      );
+      return null;
+    }
+    final sourcePath = element.source!.fullName;
+
+    if (_isInSdk(element)) return _pathForSdkElement(element);
+
+    final config = _packageConfig.packageOf(Uri.file(sourcePath));
+    if (config == null) {
+      throw Exception(
+        'Could not find package for $sourcePath. Have you run pub get?',
+      );
+    }
+    return sourcePath.substring(config.root.toFilePath().length);
   }
 
   String _localSymbolFor(Element ele) {

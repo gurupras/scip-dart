@@ -3,10 +3,12 @@ import 'package:analyzer/dart/analysis/results.dart';
 import 'package:path/path.dart' as p;
 import 'package:package_config/package_config.dart';
 import 'package:pubspec_parse/pubspec_parse.dart';
+import 'package:scip_dart/src/anonymous_functions.dart';
 import 'package:scip_dart/src/flags.dart';
 
 import 'package:scip_dart/src/gen/scip.pb.dart';
 import 'package:scip_dart/src/scip_visitor.dart';
+import 'package:scip_dart/src/symbol_generator.dart';
 import 'package:scip_dart/src/utils.dart';
 import 'package:scip_dart/src/version.dart';
 
@@ -66,6 +68,15 @@ Future<Index> indexPackage(
     print('Parsing Ast');
   }
 
+  // Anonymous functions are named from the whole package before any document
+  // is visited, so a reference from another file gets the same symbol.
+  final namingGenerator = SymbolGenerator(packageConfig, pubspec);
+  final anonymousFunctions = AnonymousFunctions.build(
+    resolvedUnits.whereType<ResolvedUnitResult>(),
+    namingGenerator.descriptorFor,
+    namingGenerator.namespaceFor,
+  );
+
   final documents = resolvedUnits.whereType<ResolvedUnitResult>().map((
     resUnit,
   ) {
@@ -78,6 +89,7 @@ Future<Index> indexPackage(
       resUnit.diagnostics,
       packageConfig,
       pubspec,
+      anonymousFunctions,
     );
     resUnit.unit.accept(visitor);
 

@@ -5,6 +5,7 @@ import 'package:analyzer/diagnostic/diagnostic.dart' as analyzer;
 import 'package:analyzer/source/line_info.dart';
 import 'package:package_config/package_config.dart';
 import 'package:pubspec_parse/pubspec_parse.dart';
+import 'package:scip_dart/src/anonymous_functions.dart';
 import 'package:scip_dart/src/kind_generator.dart';
 import 'package:scip_dart/src/metadata.dart';
 import 'package:scip_dart/src/gen/scip.pb.dart';
@@ -31,8 +32,13 @@ class ScipVisitor extends GeneralizingAstVisitor {
     this._lineInfo,
     this._analysisErrors,
     PackageConfig packageConfig,
-    Pubspec pubspec,
-  ) : _symbolGenerator = SymbolGenerator(packageConfig, pubspec) {
+    Pubspec pubspec, [
+    AnonymousFunctions? anonymousFunctions,
+  ]) : _symbolGenerator = SymbolGenerator(
+         packageConfig,
+         pubspec,
+         anonymousFunctions,
+       ) {
     final fileSymbol = _symbolGenerator.fileSymbolFor(_relativePath);
     occurrences.add(
       Occurrence(
