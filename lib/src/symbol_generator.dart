@@ -235,8 +235,9 @@ class SymbolGenerator {
 
     final namespace = _escapeNamespacePath(filePath);
 
-    // Unnamed functions of the indexed package are named after their parent
-    // (see [AnonymousFunctions]); others keep the shapes below.
+    // Functions the table names (anonymous functions, local functions and
+    // generic function types of the indexed package) are named after their
+    // parent (see [AnonymousFunctions]); others keep the shapes below.
     if (AnonymousFunctions.names(element)) {
       final descriptor = _anonymousFunctions?.descriptorFor(element);
       if (descriptor != null) return descriptor;

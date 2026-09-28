@@ -20,8 +20,8 @@ import 'package:scip_dart/src/utils.dart';
 /// enclosing unnamed function, or else the anchor: the nearest enclosing
 /// declaration with a global descriptor. `k` is its 1-based rank in source
 /// order among the siblings of the same kind whose parent has the same
-/// descriptor. Local functions and local variables are transparent, so they
-/// never change a rank. Inserting, deleting or wrapping a closure renames only
+/// descriptor. Local functions and local variables are transparent to closures
+/// and function types, so they never change their rank. Inserting, deleting or wrapping a closure renames only
 /// its later siblings and their descendants (and, for a wrap, the wrapped
 /// subtree), and an edit outside the anchor renames nothing.
 ///
@@ -81,12 +81,14 @@ class AnonymousFunctions {
 
   void _record(Element element, Fragment fragment, String d) {
     _byElement[element] = d;
-    // Only an anonymous function can be referenced from another document
-    // (a stored closure), so only it needs the position key. A function
+    // A local function, anonymous or named, can escape its document through
+    // an inferred type (a stored closure, a returned tear-off), and a
+    // reference from another document may resolve to a different element
+    // instance, so local functions also get a position key. A function
     // type's type parameters are in scope only inside that type, and its
     // fragment offset can be shared (a curried type) or absent (a fragment
-    // built from a summary).
-    if (!_isAnonymous(element)) return;
+    // built from a summary), so it gets none.
+    if (element is! LocalFunctionElement) return;
     final path = element.source?.fullName;
     if (path == null) return;
     final byOffset = _byPosition.putIfAbsent(path, () => {});
@@ -124,20 +126,17 @@ class AnonymousFunctions {
   }
 
   String? _byPositionFor(Element element) {
-    if (!_isAnonymous(element)) return null;
+    if (element is! LocalFunctionElement) return null;
     final byOffset = _byPosition[element.source?.fullName];
     return byOffset == null ? null : byOffset[element.firstFragment.offset];
   }
 
-  /// Whether [element] is an unnamed function: an anonymous function or a
-  /// generic function type.
+  /// Whether the table names [element]: an anonymous function, a local
+  /// function or a generic function type.
   static bool names(Element element) =>
       element is LocalFunctionElement ||
       (element is GenericFunctionTypeElement &&
           element.typeParameters.isNotEmpty);
-
-  static bool _isAnonymous(Element element) =>
-      element is LocalFunctionElement && element.name == null;
 }
 
 class _Collector extends RecursiveAstVisitor<void> {
