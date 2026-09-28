@@ -69,13 +69,18 @@ Future<Index> indexPackage(
   }
 
   // Anonymous functions are named from the whole package before any document
-  // is visited, so a reference from another file gets the same symbol.
+  // is visited, so a reference from another file gets the same symbol even
+  // when it resolves to a different element instance for the function.
+  final namingSt = Stopwatch()..start();
   final namingGenerator = SymbolGenerator(packageConfig, pubspec);
   final anonymousFunctions = AnonymousFunctions.build(
     resolvedUnits.whereType<ResolvedUnitResult>(),
     namingGenerator.descriptorFor,
     namingGenerator.namespaceFor,
   );
+  if (Flags.instance.performance) {
+    print('Naming anonymous functions took: ${namingSt.elapsedMilliseconds}ms');
+  }
 
   final documents = resolvedUnits.whereType<ResolvedUnitResult>().map((
     resUnit,
@@ -103,6 +108,15 @@ Future<Index> indexPackage(
 
   if (Flags.instance.performance) {
     print('Parsing Ast took: ${st.elapsedMilliseconds}ms');
+  }
+
+  if (Flags.instance.verbose) {
+    print(
+      'Anonymous functions: ${anonymousFunctions.length} named, '
+      '${anonymousFunctions.keyCollisions} key collisions, '
+      '${anonymousFunctions.internalMisses} internal misses, '
+      '${anonymousFunctions.externalFallbacks} external fallbacks',
+    );
   }
 
   return Index(

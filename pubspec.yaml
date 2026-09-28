@@ -1,5 +1,5 @@
 name: scip_dart
-version: 1.7.0
+version: 1.7.0+alx.1
 description: generates scip bindings for dart files
 repository: https://github.com/Workiva/scip-dart
 
@@ -10,7 +10,7 @@ executables:
   scip_dart:
 
 dependencies:
-  analyzer: ^14.0.0
+  analyzer: ^14.4.0
   args: ^2.4.0
   package_config: ^3.0.0
   path: ^1.8.3
