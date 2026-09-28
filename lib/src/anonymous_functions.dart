@@ -6,7 +6,8 @@ import 'package:scip_dart/src/utils.dart';
 
 /// Stable descriptors for the unnamed functions of the indexed package:
 /// anonymous functions (closures, function expressions and anonymous method
-/// invocations) and generic function types (`T Function<T>(T)`).
+/// invocations), local functions, generic function types
+/// (`T Function<T>(T)`), and the unnamed extensions whose members they anchor.
 ///
 /// The analyzer gives an anonymous function a [LocalFunctionElement] with no
 /// name, so without this table every anonymous function in a file shares the
@@ -75,7 +76,7 @@ class AnonymousFunctions {
     for (final unit in units) {
       final path = unit.unit.declaredFragment?.source.fullName;
       if (path != null) _paths.add(path);
-      unit.unit.accept(_ExtensionCollector(this, namespaceFor));
+      _ExtensionCollector(this, namespaceFor).collect(unit.unit);
     }
     for (final unit in units) {
       unit.unit.accept(_Collector(this, descriptorFor, namespaceFor));
@@ -154,31 +155,67 @@ class AnonymousFunctions {
 /// Names each unnamed extension `<ns>/`<extension on T>(k)`#`, where T is the
 /// extended type as source text and k its rank in source order among the
 /// file's unnamed extensions on the same T, so adding an extension on another
-/// type renames nothing.
-class _ExtensionCollector extends RecursiveAstVisitor<void> {
+/// type renames nothing. In T, the extension's own type parameters print as
+/// `#0`, `#1`, ... by position, so renaming one renames nothing.
+class _ExtensionCollector {
   final AnonymousFunctions _table;
   final String? Function(Element) _namespaceFor;
   final Map<String, int> _ranks = {};
 
   _ExtensionCollector(this._table, this._namespaceFor);
 
-  @override
-  void visitExtensionDeclaration(ExtensionDeclaration node) {
+  /// Unnamed extensions are compilation-unit members only.
+  void collect(CompilationUnit unit) {
+    for (final node in unit.declarations.whereType<ExtensionDeclaration>()) {
+      _add(node);
+    }
+  }
+
+  void _add(ExtensionDeclaration node) {
     final fragment = node.declaredFragment;
     final element = fragment?.element;
-    if (node.name == null && fragment != null && element != null) {
-      final namespace = _namespaceFor(element);
-      if (namespace != null) {
-        final on = node.onClause?.extendedType.toSource() ?? '';
-        final rank = _ranks[on] = (_ranks[on] ?? 0) + 1;
-        _table._record(
-          element,
-          fragment,
-          '$namespace/`<extension on ${on.replaceAll('`', '``')}>($rank)`#',
-        );
-      }
+    if (node.name != null || fragment == null || element == null) return;
+    final namespace = _namespaceFor(element);
+    if (namespace == null) return;
+    final on = _extendedTypeText(node);
+    final rank = _ranks[on] = (_ranks[on] ?? 0) + 1;
+    _table._record(
+      element,
+      fragment,
+      '$namespace/`<extension on ${on.replaceAll('`', '``')}>($rank)`#',
+    );
+  }
+
+  static String _extendedTypeText(ExtensionDeclaration node) {
+    final type = node.onClause?.extendedType;
+    if (type == null) return '';
+    final parameters = node.typeParameters?.typeParameters ?? const [];
+    if (parameters.isEmpty) return type.toSource();
+    final positions = <Element, int>{};
+    for (var i = 0; i < parameters.length; i++) {
+      final element = parameters[i].declaredFragment?.element;
+      if (element != null) positions[element] = i;
     }
-    super.visitExtensionDeclaration(node);
+    return _typeText(type, positions);
+  }
+
+  /// [type] as toSource() prints it, with the type parameters in [positions]
+  /// as `#<position>`. Types other than named types print unchanged.
+  static String _typeText(TypeAnnotation type, Map<Element, int> positions) {
+    if (type is! NamedType) return type.toSource();
+    final question = type.question == null ? '' : '?';
+    final position = positions[type.element];
+    if (type.importPrefix == null && position != null) {
+      return '#$position$question';
+    }
+    final prefix = type.importPrefix == null
+        ? ''
+        : '${type.importPrefix!.name.lexeme}.';
+    final arguments = type.typeArguments?.arguments;
+    final argumentText = arguments == null
+        ? ''
+        : '<${arguments.map((a) => _typeText(a, positions)).join(', ')}>';
+    return '$prefix${type.name.lexeme}$argumentText$question';
   }
 }
 
