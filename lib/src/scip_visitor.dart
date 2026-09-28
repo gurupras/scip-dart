@@ -136,12 +136,7 @@ class ScipVisitor extends GeneralizingAstVisitor {
   void _visitDeclaredVariablePattern(DeclaredVariablePattern node) {
     final fragment = node.declaredFragment;
     if (fragment == null || fragment.name == null) return;
-    PatternVariableElement element = fragment.element;
-    final seen = <PatternVariableElement>{element};
-    for (var join = element.join; join != null; join = join.join) {
-      if (!seen.add(join)) break;
-      element = join;
-    }
+    final element = SymbolGenerator.rootJoinOf(fragment.element);
     final joined = element != fragment.element;
     _registerAsDefinition(
       element,

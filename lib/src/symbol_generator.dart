@@ -146,6 +146,9 @@ class SymbolGenerator {
   ///
   /// Returns [null] if symbol cannot be created for provided element
   String? symbolFor(Element element) {
+    if (element is PatternVariableElement) {
+      return _localSymbolFor(rootJoinOf(element));
+    }
     if (element is LocalVariableElement) {
       return _localSymbolFor(element);
     }
@@ -358,6 +361,20 @@ class SymbolGenerator {
       );
     }
     return sourcePath.substring(config.root.toFilePath().length);
+  }
+
+  /// The variable a pattern variable joins into, across logical-or patterns
+  /// and shared case scopes: every use of a joined variable (definitions, `when`
+  /// guards and the shared body) resolves to one of the chain, so they all
+  /// name the root.
+  static PatternVariableElement rootJoinOf(PatternVariableElement element) {
+    final seen = <PatternVariableElement>{element};
+    var root = element;
+    for (var join = root.join; join != null; join = join.join) {
+      if (!seen.add(join)) break;
+      root = join;
+    }
+    return root;
   }
 
   String _localSymbolFor(Element ele) {
