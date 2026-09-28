@@ -1,4 +1,6 @@
-// Catch-clause parameters are definitions; a wildcard `_` is not a binding.
+// @dart=3.7
+// Catch-clause parameters are definitions; a wildcard `_` (language 3.7 and
+// later, set above for this library) is not a binding.
 void mayThrow() {}
 
 void catches() {

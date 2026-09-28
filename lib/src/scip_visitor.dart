@@ -71,6 +71,8 @@ class ScipVisitor extends GeneralizingAstVisitor {
       _visitNamedArgument(node);
     } else if (node is CatchClauseParameter) {
       _visitCatchClauseParameter(node);
+    } else if (node is DeclaredVariablePattern) {
+      _visitDeclaredVariablePattern(node);
     }
 
     super.visitNode(node);
@@ -126,6 +128,32 @@ class ScipVisitor extends GeneralizingAstVisitor {
     if (wildcard) return;
     _registerAsDefinition(element, node);
   }
+
+  /// A pattern variable is neither a declaration nor a formal parameter, and
+  /// its name is a token, so it is defined here. References to a variable of a
+  /// logical-or pattern or a shared case scope resolve to its join variable, so
+  /// the definition names the join, while its range stays this pattern's name.
+  void _visitDeclaredVariablePattern(DeclaredVariablePattern node) {
+    final fragment = node.declaredFragment;
+    if (fragment == null || fragment.name == null) return;
+    PatternVariableElement element = fragment.element;
+    final seen = <PatternVariableElement>{element};
+    for (var join = element.join; join != null; join = join.join) {
+      if (!seen.add(join)) break;
+      element = join;
+    }
+    final joined = element != fragment.element;
+    _registerAsDefinition(
+      element,
+      node,
+      nameOffset: node.name.offset,
+      nameLength: node.name.length,
+      withSymbolInformation: !joined || _joinsDefined.add(element),
+    );
+  }
+
+  /// Join variables whose SymbolInformation this document already has.
+  final Set<Element> _joinsDefined = {};
 
   void _visitSimpleIdentifier(SimpleIdentifier node) {
     final element = _symbolGenerator.elementFor(node);
@@ -229,28 +257,30 @@ class ScipVisitor extends GeneralizingAstVisitor {
     Element element,
     AstNode node, {
     List<Relationship>? relationships,
+    int? nameOffset,
+    int? nameLength,
+    bool withSymbolInformation = true,
   }) {
     final symbol = _symbolGenerator.symbolFor(element);
     if (symbol == null) return null;
 
-    final meta = getSymbolMetadata(
-      element,
-      element.nameOffset,
-      _analysisErrors,
-    );
-    symbols.add(
-      SymbolInformation(
-        symbol: symbol,
-        documentation: meta.documentation,
-        relationships: relationships,
-        signatureDocumentation: meta.signatureDocumentation,
-        kind: symbolKindFor(element),
-      ),
-    );
+    final offset = nameOffset ?? element.nameOffset;
+    final meta = getSymbolMetadata(element, offset, _analysisErrors);
+    if (withSymbolInformation) {
+      symbols.add(
+        SymbolInformation(
+          symbol: symbol,
+          documentation: meta.documentation,
+          relationships: relationships,
+          signatureDocumentation: meta.signatureDocumentation,
+          kind: symbolKindFor(element),
+        ),
+      );
+    }
 
     occurrences.add(
       Occurrence(
-        range: _lineInfo.getRange(element.nameOffset, element.nameLength),
+        range: _lineInfo.getRange(offset, nameLength ?? element.nameLength),
         symbol: symbol,
         symbolRoles: SymbolRole.Definition.value,
         diagnostics: meta.diagnostics,
