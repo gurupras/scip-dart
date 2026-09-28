@@ -19,7 +19,8 @@ import 'package:scip_dart/src/utils.dart';
 /// siblings whose parent has the same descriptor. Local functions and local
 /// variables are transparent, so they never change a rank. Inserting, deleting
 /// or wrapping a closure renames only its later siblings and their
-/// descendants, and an edit outside the anchor renames nothing.
+/// descendants (and, for a wrap, the wrapped subtree), and an edit outside the
+/// anchor renames nothing.
 class AnonymousFunctions {
   /// Consulted first: in-library references resolve to the same element.
   final Map<LocalFunctionElement, String> _byElement = {};
@@ -58,7 +59,8 @@ class AnonymousFunctions {
   ) {
     final table = AnonymousFunctions._();
     for (final unit in units) {
-      table._paths.add(unit.path);
+      final path = unit.unit.declaredFragment?.source.fullName;
+      if (path != null) table._paths.add(path);
       unit.unit.accept(_Collector(table, descriptorFor, namespaceFor));
     }
     return table;
@@ -139,11 +141,13 @@ class _Collector extends RecursiveAstVisitor<void> {
 
   @override
   void visitAnonymousMethodInvocation(AnonymousMethodInvocation node) {
-    _visitAnonymous(
-      node,
-      node.declaredFragment,
-      () => super.visitAnonymousMethodInvocation(node),
-    );
+    // The target is outside the anonymous method, so closures in it are not
+    // its children.
+    node.target2?.accept(this);
+    _visitAnonymous(node, node.declaredFragment, () {
+      node.parameters?.accept(this);
+      node.body.accept(this);
+    });
   }
 
   void _visitAnonymous(
