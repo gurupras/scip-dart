@@ -4,26 +4,32 @@ import 'package:analyzer/dart/ast/visitor.dart';
 import 'package:analyzer/dart/element/element.dart';
 import 'package:scip_dart/src/utils.dart';
 
-/// Stable descriptors for anonymous functions (closures, function
-/// expressions and anonymous method invocations) of the indexed package.
+/// Stable descriptors for the unnamed functions of the indexed package:
+/// anonymous functions (closures, function expressions and anonymous method
+/// invocations) and generic function types (`T Function<T>(T)`).
 ///
 /// The analyzer gives an anonymous function a [LocalFunctionElement] with no
 /// name, so without this table every anonymous function in a file shares the
 /// descriptor `<file>/null().`, and the named parameters and type parameters of
-/// all of them merge into one symbol per name.
+/// all of them merge into one symbol per name. A generic function type has no
+/// descriptor at all, so its type parameters became `null[T]`: one symbol per
+/// name across every file of the package.
 ///
-/// An anonymous function is named after its parent as
-/// `<parent>`<anonymous>`(k).`, where the parent is the nearest enclosing
-/// anonymous function, or else the anchor: the nearest enclosing declaration
-/// with a global descriptor. `k` is its 1-based rank in source order among the
-/// siblings whose parent has the same descriptor. Local functions and local
-/// variables are transparent, so they never change a rank. Inserting, deleting
-/// or wrapping a closure renames only its later siblings and their
-/// descendants (and, for a wrap, the wrapped subtree), and an edit outside the
-/// anchor renames nothing.
+/// An unnamed function is named after its parent as `<parent>`<anonymous>`(k).`
+/// or `<parent>`<function-type>`(k).`, where the parent is the nearest
+/// enclosing unnamed function, or else the anchor: the nearest enclosing
+/// declaration with a global descriptor. `k` is its 1-based rank in source
+/// order among the siblings of the same kind whose parent has the same
+/// descriptor. Local functions and local variables are transparent, so they
+/// never change a rank. Inserting, deleting or wrapping a closure renames only
+/// its later siblings and their descendants (and, for a wrap, the wrapped
+/// subtree), and an edit outside the anchor renames nothing.
 class AnonymousFunctions {
+  static const _anonymous = '<anonymous>';
+  static const _functionType = '<function-type>';
+
   /// Consulted first: in-library references resolve to the same element.
-  final Map<LocalFunctionElement, String> _byElement = {};
+  final Map<Element, String> _byElement = {};
 
   /// source path -> fragment offset -> descriptor. A reference from another
   /// document may resolve to a different element instance for the same
@@ -38,11 +44,11 @@ class AnonymousFunctions {
   /// Two functions with one (path, offset) key; the first keeps the key.
   int keyCollisions = 0;
 
-  /// Anonymous functions of an indexed file that have no descriptor (for
+  /// Unnamed functions of an indexed file that have no descriptor (for
   /// example a local function whose name is missing in erroneous code).
   int internalMisses = 0;
 
-  /// Anonymous functions of other packages, which keep the unnamed shape.
+  /// Unnamed functions of other packages, which keep the 1.7.0 shape.
   int externalFallbacks = 0;
 
   int get length => _byElement.length;
@@ -66,7 +72,7 @@ class AnonymousFunctions {
     return table;
   }
 
-  void _record(LocalFunctionElement element, Fragment fragment, String d) {
+  void _record(Element element, Fragment fragment, String d) {
     _byElement[element] = d;
     final path = element.source?.fullName;
     if (path == null) return;
@@ -75,7 +81,7 @@ class AnonymousFunctions {
     if (existing != null && existing != d) {
       keyCollisions++;
       display(
-        'Anonymous functions share the key $path@${fragment.offset}: '
+        'Unnamed functions share the key $path@${fragment.offset}: '
         'keeping $existing, not $d',
       );
       return;
@@ -83,9 +89,9 @@ class AnonymousFunctions {
     byOffset[fragment.offset] = d;
   }
 
-  /// The descriptor of an anonymous function of the indexed package, or null
-  /// for one outside it (counted as a miss or an external fallback).
-  String? descriptorFor(LocalFunctionElement element) {
+  /// The descriptor of an unnamed function ([unnamed]) of the indexed package,
+  /// or null for one outside it (counted as a miss or an external fallback).
+  String? descriptorFor(Element element) {
     final d =
         _byElement[element] ??
         _byPosition[element.source?.fullName]?[element.firstFragment.offset];
@@ -95,7 +101,7 @@ class AnonymousFunctions {
       if (path != null && _paths.contains(path)) {
         internalMisses++;
         display(
-          'Anonymous function without a descriptor at '
+          'Unnamed function without a descriptor at '
           '$path@${element.firstFragment.offset}',
         );
       } else {
@@ -105,9 +111,11 @@ class AnonymousFunctions {
     return null;
   }
 
-  /// [element] as an anonymous function, or null.
-  static LocalFunctionElement? anonymous(Element element) =>
-      element is LocalFunctionElement && element.name == null ? element : null;
+  /// Whether [element] is an unnamed function: an anonymous function or a
+  /// generic function type.
+  static bool isUnnamed(Element element) =>
+      (element is LocalFunctionElement && element.name == null) ||
+      element is GenericFunctionTypeElement;
 }
 
 class _Collector extends RecursiveAstVisitor<void> {
@@ -115,11 +123,11 @@ class _Collector extends RecursiveAstVisitor<void> {
   final String? Function(Element) _descriptorFor;
   final String? Function(Element) _namespaceFor;
 
-  /// Descriptors of the enclosing anonymous functions, innermost last.
+  /// Descriptors of the enclosing unnamed functions, innermost last.
   final List<String> _parents = [];
 
-  /// parent descriptor -> children ranked so far
-  final Map<String, int> _ranks = {};
+  /// (kind, parent descriptor) -> children ranked so far
+  final Map<(String, String), int> _ranks = {};
 
   /// anchor declaration -> its descriptor
   final Map<AstNode, String?> _anchors = {};
@@ -132,7 +140,8 @@ class _Collector extends RecursiveAstVisitor<void> {
       super.visitFunctionExpression(node);
       return;
     }
-    _visitAnonymous(
+    _visitUnnamed(
+      AnonymousFunctions._anonymous,
       node,
       node.declaredFragment,
       () => super.visitFunctionExpression(node),
@@ -144,13 +153,29 @@ class _Collector extends RecursiveAstVisitor<void> {
     // The target is outside the anonymous method, so closures in it are not
     // its children.
     node.target2?.accept(this);
-    _visitAnonymous(node, node.declaredFragment, () {
-      node.parameters?.accept(this);
-      node.body.accept(this);
-    });
+    _visitUnnamed(
+      AnonymousFunctions._anonymous,
+      node,
+      node.declaredFragment,
+      () {
+        node.parameters?.accept(this);
+        node.body.accept(this);
+      },
+    );
   }
 
-  void _visitAnonymous(
+  @override
+  void visitGenericFunctionType(GenericFunctionType node) {
+    _visitUnnamed(
+      AnonymousFunctions._functionType,
+      node,
+      node.declaredFragment,
+      () => super.visitGenericFunctionType(node),
+    );
+  }
+
+  void _visitUnnamed(
+    String kind,
     AstNode node,
     Fragment? fragment,
     void Function() visitChildren,
@@ -160,13 +185,14 @@ class _Collector extends RecursiveAstVisitor<void> {
         ? _parents.last
         : _anchorOf(node) ?? _fileAnchorOf(element);
     if (fragment == null ||
-        element is! LocalFunctionElement ||
+        element == null ||
+        !AnonymousFunctions.isUnnamed(element) ||
         parent == null) {
       visitChildren();
       return;
     }
-    final rank = _ranks[parent] = (_ranks[parent] ?? 0) + 1;
-    final descriptor = '$parent`<anonymous>`($rank).';
+    final rank = _ranks[(kind, parent)] = (_ranks[(kind, parent)] ?? 0) + 1;
+    final descriptor = '$parent`$kind`($rank).';
     _table._record(element, fragment, descriptor);
     _parents.add(descriptor);
     try {
@@ -184,10 +210,19 @@ class _Collector extends RecursiveAstVisitor<void> {
 
   String? _anchorOf(AstNode node) {
     for (AstNode? n = node.parent; n != null; n = n.parent) {
-      if (n is! Declaration) continue;
-      final element = n.declaredFragment?.element;
+      final Element? element;
+      if (n is Declaration) {
+        element = n.declaredFragment?.element;
+      } else if (n is VariableDeclarationList && n.variables.isNotEmpty) {
+        // A variable's type annotation hangs off its declaration list, not
+        // the variable: anchor it at the list's first variable.
+        element = n.variables.first.declaredFragment?.element;
+      } else {
+        continue;
+      }
       if (element == null || !_isAnchor(element)) continue;
-      final descriptor = _anchors.putIfAbsent(n, () => _descriptorFor(element));
+      final anchor = element;
+      final descriptor = _anchors.putIfAbsent(n, () => _descriptorFor(anchor));
       if (descriptor != null) return descriptor;
     }
     return null;

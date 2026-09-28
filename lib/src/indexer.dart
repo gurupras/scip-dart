@@ -79,7 +79,7 @@ Future<Index> indexPackage(
     namingGenerator.namespaceFor,
   );
   if (Flags.instance.performance) {
-    print('Naming anonymous functions took: ${namingSt.elapsedMilliseconds}ms');
+    print('Naming unnamed functions took: ${namingSt.elapsedMilliseconds}ms');
   }
 
   final documents = resolvedUnits.whereType<ResolvedUnitResult>().map((
@@ -112,7 +112,7 @@ Future<Index> indexPackage(
 
   if (Flags.instance.verbose) {
     print(
-      'Anonymous functions: ${anonymousFunctions.length} named, '
+      'Unnamed functions: ${anonymousFunctions.length} named, '
       '${anonymousFunctions.keyCollisions} key collisions, '
       '${anonymousFunctions.internalMisses} internal misses, '
       '${anonymousFunctions.externalFallbacks} external fallbacks',
