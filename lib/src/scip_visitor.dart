@@ -73,6 +73,8 @@ class ScipVisitor extends GeneralizingAstVisitor {
       _visitCatchClauseParameter(node);
     } else if (node is DeclaredVariablePattern) {
       _visitDeclaredVariablePattern(node);
+    } else if (node is AssignedVariablePattern) {
+      _visitAssignedVariablePattern(node);
     }
 
     super.visitNode(node);
@@ -144,6 +146,19 @@ class ScipVisitor extends GeneralizingAstVisitor {
       nameOffset: node.name.offset,
       nameLength: node.name.length,
       withSymbolInformation: !joined || _joinsDefined.add(element),
+    );
+  }
+
+  /// The variable a pattern assignment (`(a, b) = (b, a)`) writes to is named
+  /// by a token, not an identifier, so its reference is emitted here.
+  void _visitAssignedVariablePattern(AssignedVariablePattern node) {
+    final element = node.element;
+    if (element == null) return;
+    _registerAsReference(
+      element,
+      node,
+      offset: node.name.offset,
+      length: node.name.length,
     );
   }
 
