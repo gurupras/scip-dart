@@ -152,8 +152,14 @@ class ScipVisitor extends GeneralizingAstVisitor {
   /// The variable a pattern assignment (`(a, b) = (b, a)`) writes to is named
   /// by a token, not an identifier, so its reference is emitted here.
   void _visitAssignedVariablePattern(AssignedVariablePattern node) {
+    // In valid code the target is a local variable or a parameter; code that
+    // does not compile can resolve to an accessor, which is not defined.
     final element = node.element;
-    if (element == null) return;
+    if (element == null ||
+        (element is! LocalVariableElement &&
+            element is! FormalParameterElement)) {
+      return;
+    }
     _registerAsReference(
       element,
       node,
