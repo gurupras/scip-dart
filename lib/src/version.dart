@@ -2,4 +2,4 @@
 // stored within pubspec.yaml
 
 /// The current version of scip_dart
-const scipDartVersion = '1.7.0+alx.8';
+const scipDartVersion = '1.7.0+alx.9';

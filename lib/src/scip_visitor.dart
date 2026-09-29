@@ -75,6 +75,8 @@ class ScipVisitor extends GeneralizingAstVisitor {
       _visitDeclaredVariablePattern(node);
     } else if (node is AssignedVariablePattern) {
       _visitAssignedVariablePattern(node);
+    } else if (node is PrimaryConstructorDeclaration) {
+      _visitPrimaryConstructorDeclaration(node);
     }
 
     super.visitNode(node);
@@ -109,7 +111,39 @@ class ScipVisitor extends GeneralizingAstVisitor {
       // initializer list refers to the parameter, not the field.
     }
 
+    // A declaring parameter (an extension type's representation) declares
+    // its field too, and every use of the field refers to that field.
+    final name = node.name;
+    if (element is FieldFormalParameterElement &&
+        element.isDeclaring &&
+        name != null) {
+      final field = element.field;
+      if (field != null) {
+        _registerAsDefinition(
+          field,
+          node,
+          nameOffset: name.offset,
+          nameLength: name.length,
+        );
+      }
+    }
+
     _registerAsDefinition(element, node);
+  }
+
+  /// A primary constructor (an extension type's representation constructor)
+  /// is not a declaration node, so it is defined here: at its name when it
+  /// has one (`X._`), else at the type name, as the Dart IDE does.
+  void _visitPrimaryConstructorDeclaration(PrimaryConstructorDeclaration node) {
+    final element = node.declaredFragment?.element;
+    if (element == null) return;
+    final name = node.constructorName?.name ?? node.typeName;
+    _registerAsDefinition(
+      element,
+      node,
+      nameOffset: name.offset,
+      nameLength: name.length,
+    );
   }
 
   /// The exception and stack trace parameters of a catch clause are neither
