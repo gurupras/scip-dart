@@ -412,7 +412,12 @@ class SymbolGenerator {
             if (p.isNamed && p.name == element.name) match = p;
           }
         } else {
-          final index = owner.formalParameters.indexOf(element);
+          // By declaration: a parameter reached through a generic
+          // application (`extends GA<int>`) is a substituted copy.
+          final base = element.baseElement;
+          final index = owner.formalParameters.indexWhere(
+            (p) => p.baseElement == base,
+          );
           if (index >= 0 && index < parameters.length) {
             match = parameters[index];
           }

@@ -304,6 +304,7 @@ class ScipVisitor extends GeneralizingAstVisitor {
     required int offset,
     required int length,
   }) {
+    element = SymbolGenerator.forwardedTarget(element);
     final symbol = _symbolGenerator.symbolFor(element);
     if (symbol != null) {
       final meta = getSymbolMetadata(element, offset, _analysisErrors);
@@ -345,6 +346,7 @@ class ScipVisitor extends GeneralizingAstVisitor {
     int? nameLength,
     bool withSymbolInformation = true,
   }) {
+    element = SymbolGenerator.forwardedTarget(element);
     final symbol = _symbolGenerator.symbolFor(element);
     if (symbol == null) return null;
 
