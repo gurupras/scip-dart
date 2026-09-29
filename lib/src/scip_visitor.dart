@@ -105,10 +105,8 @@ class ScipVisitor extends GeneralizingAstVisitor {
         length: node.name.length,
       );
 
-      // non-named parameters are considered 'local' symbols, and when combined
-      // with field formal parameters (this.foo), do not contain a declaration.
-      // if its not named, do not register it as a definition as well.
-      if (!node.isNamed) return;
+      // The parameter is defined as well, named or positional: the
+      // initializer list refers to the parameter, not the field.
     }
 
     _registerAsDefinition(element, node);
