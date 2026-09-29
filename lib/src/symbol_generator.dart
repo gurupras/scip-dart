@@ -162,8 +162,11 @@ class SymbolGenerator {
     // a document-local symbol would cut every use in another part from its
     // definition. A named private element is named like a public one (its
     // namespace is its declaring file, so two libraries' `_f` differ). An
-    // element with no name (isPrivate is true for it) stays local.
-    if (element.name == null) {
+    // element with no name (isPrivate is true for it) stays local, and so
+    // does a type parameter `_`, which is a wildcard (language 3.7 and later)
+    // that may appear more than once in one list.
+    if (element.name == null ||
+        (element is TypeParameterElement && element.name == '_')) {
       return _localSymbolFor(element);
     }
 

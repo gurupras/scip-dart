@@ -59,7 +59,10 @@ List<Relationship>? relationshipsFor(
           .where((acc) => acc.variable.name == element.variable.name);
     }
 
+    // A private member overrides only a supertype member of its own library:
+    // `_m` in another library is a different member that shares the name.
     return referencingElements
+        .where((e) => !element.isPrivate || e.library == element.library)
         .map(
           (type) => Relationship(
             symbol: symbolGenerator.symbolFor(type),
