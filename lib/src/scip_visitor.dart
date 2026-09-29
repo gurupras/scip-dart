@@ -111,8 +111,10 @@ class ScipVisitor extends GeneralizingAstVisitor {
       // initializer list refers to the parameter, not the field.
     }
 
-    // A declaring parameter (an extension type's representation) declares
-    // its field too, and every use of the field refers to that field.
+    // A declaring parameter of a primary constructor (`final int x` in a
+    // class, enum or extension type header, including an extension type's
+    // representation) declares its field too, and every use of the field
+    // refers to that field.
     final name = node.name;
     if (element is FieldFormalParameterElement &&
         element.isDeclaring &&
@@ -138,9 +140,9 @@ class ScipVisitor extends GeneralizingAstVisitor {
     );
   }
 
-  /// A primary constructor (an extension type's representation constructor)
-  /// is not a declaration node, so it is defined here: at its name when it
-  /// has one (`X._`), else at the type name, as the Dart IDE does.
+  /// A primary constructor (in a class, enum or extension type header) is not
+  /// a declaration node, so it is defined here: at its name when it has one
+  /// (`X._`, `X.new`), else at the type name, as the Dart IDE does.
   void _visitPrimaryConstructorDeclaration(PrimaryConstructorDeclaration node) {
     final element = node.declaredFragment?.element;
     if (element == null) return;
