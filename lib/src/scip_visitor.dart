@@ -128,7 +128,14 @@ class ScipVisitor extends GeneralizingAstVisitor {
       }
     }
 
-    _registerAsDefinition(element, node);
+    // The range is the name token: a private named parameter (`this._x`) is
+    // named `x`, so the element's name is shorter than the token.
+    _registerAsDefinition(
+      element,
+      node,
+      nameOffset: name?.offset,
+      nameLength: name?.length,
+    );
   }
 
   /// A primary constructor (an extension type's representation constructor)
