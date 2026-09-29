@@ -37,6 +37,7 @@
     Animal(this.name, {required this.type}) {
 //  ^^^^^^ definition scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#`<constructor>`().
 //              ^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#name.
+//              ^^^^ definition local 0
 //                                   ^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#type.
 //                                   ^^^^ definition scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#`<constructor>`().(type)
       print(AnimalType.values);
@@ -102,14 +103,14 @@
 //    ^^^^^^^^^^^^ definition scip-dart pub dart_test 1.0.0 lib/`more.dart`/calculateSum().
 //                 ^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`list.dart`/List#
 //                      ^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`int.dart`/int#
-//                           ^^^^^^^ definition local 0
+//                           ^^^^^^^ definition local 1
     return numbers.reduce((value, element) => value + element);
-//         ^^^^^^^ reference local 0
+//         ^^^^^^^ reference local 1
 //                 ^^^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`iterable.dart`/Iterable#reduce().
-//                         ^^^^^ definition local 1
-//                                ^^^^^^^ definition local 2
-//                                            ^^^^^ reference local 1
-//                                                    ^^^^^^^ reference local 2
+//                         ^^^^^ definition local 2
+//                                ^^^^^^^ definition local 3
+//                                            ^^^^^ reference local 2
+//                                                    ^^^^^^^ reference local 3
   }
   
   void main() {
@@ -117,61 +118,61 @@
     List<int> numbers = [1, 2, 3, 4, 5];
 //  ^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`list.dart`/List#
 //       ^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`int.dart`/int#
-//            ^^^^^^^ definition local 3
+//            ^^^^^^^ definition local 4
     int sum = calculateSum(numbers);
 //  ^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`int.dart`/int#
-//      ^^^ definition local 4
+//      ^^^ definition local 5
 //            ^^^^^^^^^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/calculateSum().
-//                         ^^^^^^^ reference local 3
+//                         ^^^^^^^ reference local 4
   
     Animal bird = Animal('Kitty', type: AnimalType.bird);
 //  ^^^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#
-//         ^^^^ definition local 5
+//         ^^^^ definition local 6
 //                ^^^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#`<constructor>`().
 //                                ^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#`<constructor>`().(type)
 //                                      ^^^^^^^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/AnimalType#
 //                                                 ^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/AnimalType#bird.
     Animal dog = Animal('Buddy', type: AnimalType.dog);
 //  ^^^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#
-//         ^^^ definition local 6
+//         ^^^ definition local 7
 //               ^^^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#`<constructor>`().
 //                               ^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#`<constructor>`().(type)
 //                                     ^^^^^^^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/AnimalType#
 //                                                ^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/AnimalType#dog.
     Animal cat = Animal.cat();
 //  ^^^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#
-//         ^^^ definition local 7
+//         ^^^ definition local 8
 //               ^^^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#
 //                      ^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#cat().
   
     bird.makeSound();
-//  ^^^^ reference local 5
+//  ^^^^ reference local 6
 //       ^^^^^^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#makeSound().
     bird.sleep();
-//  ^^^^ reference local 5
+//  ^^^^ reference local 6
 //       ^^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/SleepMixin#sleep().
   
     dog.makeSound();
-//  ^^^ reference local 6
+//  ^^^ reference local 7
 //      ^^^^^^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#makeSound().
     dog.sleep();
-//  ^^^ reference local 6
+//  ^^^ reference local 7
 //      ^^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/SleepMixin#sleep().
   
     cat.makeSound();
-//  ^^^ reference local 7
+//  ^^^ reference local 8
 //      ^^^^^^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/Animal#makeSound().
   
     print(bird);
 //  ^^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`print.dart`/print().
-//        ^^^^ reference local 5
+//        ^^^^ reference local 6
     print(dog);
 //  ^^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`print.dart`/print().
-//        ^^^ reference local 6
+//        ^^^ reference local 7
     print('The sum of $numbers is $sum');
 //  ^^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`print.dart`/print().
-//                     ^^^^^^^ reference local 3
-//                                 ^^^ reference local 4
+//                     ^^^^^^^ reference local 4
+//                                 ^^^ reference local 5
   
     print(math.Rectangle(1, 2, 3, 4));
 //  ^^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`print.dart`/print().
@@ -181,46 +182,46 @@
     math.Random? random = math.Random();
 //  ^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/math.
 //       ^^^^^^ reference scip-dart pub dart:math 3.13.0 dart:math/`random.dart`/Random#
-//               ^^^^^^ definition local 8
+//               ^^^^^^ definition local 9
 //                        ^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/math.
 //                             ^^^^^^ reference scip-dart pub dart:math 3.13.0 dart:math/`random.dart`/Random#`<constructor>`().
     final points = <math.Point<int>>[];
-//        ^^^^^^ definition local 9
+//        ^^^^^^ definition local 10
 //                  ^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/math.
 //                       ^^^^^ reference scip-dart pub dart:math 3.13.0 dart:math/`point.dart`/Point#
 //                             ^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`int.dart`/int#
     Object value = points;
 //  ^^^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`object.dart`/Object#
-//         ^^^^^ definition local 10
-//                 ^^^^^^ reference local 9
+//         ^^^^^ definition local 11
+//                 ^^^^^^ reference local 10
     print(value is math.Random);
 //  ^^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`print.dart`/print().
-//        ^^^^^ reference local 10
+//        ^^^^^ reference local 11
 //                 ^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/math.
 //                      ^^^^^^ reference scip-dart pub dart:math 3.13.0 dart:math/`random.dart`/Random#
     print([random, points]);
 //  ^^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`print.dart`/print().
-//         ^^^^^^ reference local 8
-//                 ^^^^^^ reference local 9
+//         ^^^^^^ reference local 9
+//                 ^^^^^^ reference local 10
   
     [1, 2].reduce((a, b) => a + b);
 //         ^^^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`iterable.dart`/Iterable#reduce().
-//                 ^ definition local 11
-//                    ^ definition local 12
-//                          ^ reference local 11
-//                              ^ reference local 12
+//                 ^ definition local 12
+//                    ^ definition local 13
+//                          ^ reference local 12
+//                              ^ reference local 13
   }
   
   void test(String Function(int) p) {}
 //     ^^^^ definition scip-dart pub dart_test 1.0.0 lib/`more.dart`/test().
 //          ^^^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`string.dart`/String#
 //                          ^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`int.dart`/int#
-//                               ^ definition local 13
+//                               ^ definition local 14
   void deepTest(String Function(void Function(String test)) p) {}
 //     ^^^^^^^^ definition scip-dart pub dart_test 1.0.0 lib/`more.dart`/deepTest().
 //              ^^^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`string.dart`/String#
 //                                            ^^^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`string.dart`/String#
-//                                                          ^ definition local 14
+//                                                          ^ definition local 15
   math.Point<int> origin(math.Random random) => math.Point(0, 0);
 //^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/math.
 //     ^^^^^ reference scip-dart pub dart:math 3.13.0 dart:math/`point.dart`/Point#
@@ -228,7 +229,7 @@
 //                ^^^^^^ definition scip-dart pub dart_test 1.0.0 lib/`more.dart`/origin().
 //                       ^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/math.
 //                            ^^^^^^ reference scip-dart pub dart:math 3.13.0 dart:math/`random.dart`/Random#
-//                                   ^^^^^^ definition local 15
+//                                   ^^^^^^ definition local 16
 //                                              ^^^^ reference scip-dart pub dart_test 1.0.0 lib/`more.dart`/math.
 //                                                   ^^^^^ reference scip-dart pub dart:math 3.13.0 dart:math/`point.dart`/Point#`<constructor>`().
   

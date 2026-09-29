@@ -34,15 +34,15 @@
 //        ^^^^^^ definition local 8
   
     void skipComment() {}
-//       ^^^^^^^^^^^ definition scip-dart pub dart3_features 1.0.0 lib/`main.dart`/skipComment().
+//       ^^^^^^^^^^^ definition scip-dart pub dart3_features 1.0.0 lib/`main.dart`/parser().skipComment(1).
     void operatorFn(int charCode) {}
-//       ^^^^^^^^^^ definition scip-dart pub dart3_features 1.0.0 lib/`main.dart`/operatorFn().
+//       ^^^^^^^^^^ definition scip-dart pub dart3_features 1.0.0 lib/`main.dart`/parser().operatorFn(1).
 //                  ^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`int.dart`/int#
 //                      ^^^^^^^^ definition local 9
     void number() {}
-//       ^^^^^^ definition scip-dart pub dart3_features 1.0.0 lib/`main.dart`/number().
+//       ^^^^^^ definition scip-dart pub dart3_features 1.0.0 lib/`main.dart`/parser().number(1).
     void invalid() {}
-//       ^^^^^^^ definition scip-dart pub dart3_features 1.0.0 lib/`main.dart`/invalid().
+//       ^^^^^^^ definition scip-dart pub dart3_features 1.0.0 lib/`main.dart`/parser().invalid(1).
   
     switch (charCode) {
 //          ^^^^^^^^ reference local 1
@@ -51,7 +51,7 @@
 //                    ^^^^^^^^^^^^ reference local 6
 //                                    ^^^^^ reference local 2
         skipComment();
-//      ^^^^^^^^^^^ reference scip-dart pub dart3_features 1.0.0 lib/`main.dart`/skipComment().
+//      ^^^^^^^^^^^ reference scip-dart pub dart3_features 1.0.0 lib/`main.dart`/parser().skipComment(1).
   
       case slash || star || plus || minus:
 //         ^^^^^ reference local 2
@@ -59,18 +59,18 @@
 //                          ^^^^ reference local 4
 //                                  ^^^^^ reference local 5
         operatorFn(charCode);
-//      ^^^^^^^^^^ reference scip-dart pub dart3_features 1.0.0 lib/`main.dart`/operatorFn().
+//      ^^^^^^^^^^ reference scip-dart pub dart3_features 1.0.0 lib/`main.dart`/parser().operatorFn(1).
 //                 ^^^^^^^^ reference local 1
   
       case >= digit0 && <= digit9:
 //            ^^^^^^ reference local 7
 //                         ^^^^^^ reference local 8
         number();
-//      ^^^^^^ reference scip-dart pub dart3_features 1.0.0 lib/`main.dart`/number().
+//      ^^^^^^ reference scip-dart pub dart3_features 1.0.0 lib/`main.dart`/parser().number(1).
   
       default:
         invalid();
-//      ^^^^^^^ reference scip-dart pub dart3_features 1.0.0 lib/`main.dart`/invalid().
+//      ^^^^^^^ reference scip-dart pub dart3_features 1.0.0 lib/`main.dart`/parser().invalid(1).
     }
   }
   
@@ -100,7 +100,9 @@
 //     ^^^^ definition scip-dart pub dart3_features 1.0.0 lib/`main.dart`/main().
     var (String name, int height) = userInfo({'name': 'Michael', 'height': 180});
 //       ^^^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`string.dart`/String#
+//              ^^^^ definition local 12
 //                    ^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`int.dart`/int#
+//                        ^^^^^^ definition local 13
 //                                  ^^^^^^^^ reference scip-dart pub dart3_features 1.0.0 lib/`main.dart`/userInfo().
     print('User $name is $height cm tall.');
 //  ^^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`print.dart`/print().
@@ -112,6 +114,7 @@
     if (json case {'name': 'Michael', 'height': int h}) {
 //      ^^^^ reference local 14
 //                                              ^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`int.dart`/int#
+//                                                  ^ definition local 15
       print('Michael is $h cm tall.');
 //    ^^^^^ reference scip-dart pub dart:core 3.13.0 dart:core/`print.dart`/print().
 //                       ^ reference local 15
