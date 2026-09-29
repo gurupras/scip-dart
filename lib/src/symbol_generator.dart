@@ -146,6 +146,7 @@ class SymbolGenerator {
   ///
   /// Returns [null] if symbol cannot be created for provided element
   String? symbolFor(Element element) {
+    element = forwardedTarget(element);
     if (element is PatternVariableElement) {
       return _localSymbolFor(rootJoinOf(element));
     }
@@ -383,6 +384,46 @@ class SymbolGenerator {
       );
     }
     return sourcePath.substring(config.root.toFilePath().length);
+  }
+
+  /// A mixin application (`class A = B with M;`) has no constructors of its
+  /// own: analyzer gives it synthetic ones that forward to the superclass's,
+  /// which nothing defines. Such a constructor, or one of its parameters,
+  /// stands for the constructor or parameter it forwards to (followed through
+  /// chained applications). An implicit default constructor of an ordinary
+  /// class is synthetic too, but not forwarded, and keeps its own symbol.
+  static Element forwardedTarget(Element element) {
+    for (var depth = 0; depth < 16; depth++) {
+      if (element is ConstructorElement && element.isOriginMixinApplication) {
+        final target = element.superConstructor;
+        if (target == null) return element;
+        element = target;
+      } else if (element is FormalParameterElement) {
+        final owner = element.enclosingElement;
+        if (owner is! ConstructorElement || !owner.isOriginMixinApplication) {
+          return element;
+        }
+        final target = owner.superConstructor;
+        if (target == null) return element;
+        final parameters = target.formalParameters;
+        FormalParameterElement? match;
+        if (element.isNamed) {
+          for (final p in parameters) {
+            if (p.isNamed && p.name == element.name) match = p;
+          }
+        } else {
+          final index = owner.formalParameters.indexOf(element);
+          if (index >= 0 && index < parameters.length) {
+            match = parameters[index];
+          }
+        }
+        if (match == null) return element;
+        element = match;
+      } else {
+        return element;
+      }
+    }
+    return element;
   }
 
   /// The variable a pattern variable joins into, across logical-or patterns

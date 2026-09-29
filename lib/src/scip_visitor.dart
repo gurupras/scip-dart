@@ -116,7 +116,11 @@ class ScipVisitor extends GeneralizingAstVisitor {
     // own document, so a field-formal target is referenced by its field.
     if (node is SuperFormalParameter &&
         element is SuperFormalParameterElement) {
-      final target = element.superConstructorParameter;
+      final forwarded = element.superConstructorParameter;
+      final target = forwarded == null
+          ? null
+          : SymbolGenerator.forwardedTarget(forwarded)
+                as FormalParameterElement;
       final Element? referenced = target == null
           ? null
           : target.isNamed
