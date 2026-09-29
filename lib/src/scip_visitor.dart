@@ -111,6 +111,29 @@ class ScipVisitor extends GeneralizingAstVisitor {
       // initializer list refers to the parameter, not the field.
     }
 
+    // `super.x` forwards to a parameter of the super constructor, which it
+    // references: a named one by its symbol. A positional one is local to its
+    // own document, so a field-formal target is referenced by its field.
+    if (node is SuperFormalParameter &&
+        element is SuperFormalParameterElement) {
+      final target = element.superConstructorParameter;
+      final Element? referenced = target == null
+          ? null
+          : target.isNamed
+          ? target
+          : target is FieldFormalParameterElement
+          ? target.field
+          : null;
+      if (referenced != null) {
+        _registerAsReference(
+          referenced,
+          node,
+          offset: node.name.offset,
+          length: node.name.length,
+        );
+      }
+    }
+
     // A declaring parameter of a primary constructor (`final int x` in a
     // class, enum or extension type header, including an extension type's
     // representation) declares its field too, and every use of the field
