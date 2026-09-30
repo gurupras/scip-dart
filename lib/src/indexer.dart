@@ -33,9 +33,11 @@ Future<Index> indexPackage(
       .map((package) => p.normalize(package.packageUriRoot.toFilePath()))
       .toList();
 
+  // Compared normalised: `root` may carry a trailing slash, which would put
+  // the package's own directory in this list and exclude all of its files.
   final nestedPackages = (await pubspecPathsFor(root))
-      .map((path) => p.dirname(path))
-      .where((path) => path != root)
+      .map((path) => p.normalize(p.absolute(p.dirname(path))))
+      .where((path) => !p.equals(path, dirPath))
       .toList();
 
   if (Flags.instance.verbose) print('Ignoring subdirectories: $nestedPackages');
@@ -57,31 +59,35 @@ Future<Index> indexPackage(
   // dependencies' lib/, are skipped). Each file is resolved by the context
   // that analyzes it.
   final context = collection.contextFor(dirPath);
+  // `seen` makes the selection valid for one pass, so it is materialised.
   final seen = <String>{};
   bool overlaps(String root) =>
       p.equals(root, dirPath) ||
       p.isWithin(root, dirPath) ||
       p.isWithin(dirPath, root);
-  final resolvedUnitFutures = [
-    context,
-    ...collection.contexts.where(
-      (c) => c != context && overlaps(c.contextRoot.root.path),
-    ),
-  ].expand(
-    (c) => c.contextRoot
-        .analyzedFiles()
-        .where((file) => p.extension(file) == '.dart')
-        .where((file) => p.isWithin(dirPath, file))
-        // only index dart files of the current dart package, to index nested
-        // packages, scip indexing can simply be re-run for that nested package
-        .where(
-          (file) => !nestedPackages.any(
-            (nested) => p.isWithin(p.normalize(p.absolute(nested)), file),
-          ),
-        )
-        .where(seen.add)
-        .map(c.currentSession.getResolvedUnit),
-  );
+  final resolvedUnitFutures =
+      [
+            context,
+            ...collection.contexts.where(
+              (c) => c != context && overlaps(c.contextRoot.root.path),
+            ),
+          ]
+          .expand(
+            (c) => c.contextRoot
+                .analyzedFiles()
+                .where((file) => p.extension(file) == '.dart')
+                .where((file) => p.isWithin(dirPath, file))
+                // only index dart files of the current dart package, to index
+                // nested packages, scip indexing can simply be re-run for that
+                // nested package
+                .where(
+                  (file) =>
+                      !nestedPackages.any((nested) => p.isWithin(nested, file)),
+                )
+                .where(seen.add)
+                .map(c.currentSession.getResolvedUnit),
+          )
+          .toList();
 
   final resolvedUnits = await Future.wait(resolvedUnitFutures);
 
