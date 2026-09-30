@@ -47,18 +47,41 @@ Future<Index> indexPackage(
   if (Flags.instance.performance) print('Analyzing Source');
   final st = Stopwatch()..start();
 
+  // The package's files can span several context roots: in a pub workspace
+  // the package directory belongs to the workspace root's context, which also
+  // analyzes other packages' lib/ (every package root is an included path),
+  // while an analysis_options.yaml in the package gives its lib/ a context of
+  // its own. So files are taken from every context, the package directory's
+  // own context first to keep its order, and selected by lying within the
+  // package directory (contexts that cannot hold such a file, such as
+  // dependencies' lib/, are skipped). Each file is resolved by the context
+  // that analyzes it.
   final context = collection.contextFor(dirPath);
-  final resolvedUnitFutures = context.contextRoot
-      .analyzedFiles()
-      .where((file) => p.extension(file) == '.dart')
-      // only index dart files of the current dart package, to index nested
-      // packages, scip indexing can simply be re-run for that nested package
-      .where(
-        (file) => !nestedPackages.any(
-          (nested) => p.isWithin(p.normalize(p.absolute(nested)), file),
-        ),
-      )
-      .map(context.currentSession.getResolvedUnit);
+  final seen = <String>{};
+  bool overlaps(String root) =>
+      p.equals(root, dirPath) ||
+      p.isWithin(root, dirPath) ||
+      p.isWithin(dirPath, root);
+  final resolvedUnitFutures = [
+    context,
+    ...collection.contexts.where(
+      (c) => c != context && overlaps(c.contextRoot.root.path),
+    ),
+  ].expand(
+    (c) => c.contextRoot
+        .analyzedFiles()
+        .where((file) => p.extension(file) == '.dart')
+        .where((file) => p.isWithin(dirPath, file))
+        // only index dart files of the current dart package, to index nested
+        // packages, scip indexing can simply be re-run for that nested package
+        .where(
+          (file) => !nestedPackages.any(
+            (nested) => p.isWithin(p.normalize(p.absolute(nested)), file),
+          ),
+        )
+        .where(seen.add)
+        .map(c.currentSession.getResolvedUnit),
+  );
 
   final resolvedUnits = await Future.wait(resolvedUnitFutures);
 
